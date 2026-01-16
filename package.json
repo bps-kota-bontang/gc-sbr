@@ -1,0 +1,14 @@
+{
+  "name": "matcha-pro",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "fuse.js": "^7.1.0",
+    "puppeteer": "^24.35.0"
+  }
+}
