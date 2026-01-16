@@ -1,6 +1,10 @@
 import * as fs from "fs";
 import puppeteer from "puppeteer";
 import Fuse from "fuse.js";
+import dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
 
 // TODO: Perbarui Cookie dan Token secara berkala
 // Cookie dan token ini akan kadaluarsa setelah beberapa waktu
@@ -21,13 +25,19 @@ const ID_PROVINSI = parseInt(process.env.ID_PROVINSI || "128");
 const ID_KABUPATEN = parseInt(process.env.ID_KABUPATEN || "2526");
 const CITY = process.env.CITY || "Bontang";
 
+console.log("🚀 Starting Groundcheck Script");
+console.log("=".repeat(50));
+console.log(
+  `🏙️  Target Location: ${CITY} (Provinsi ID: ${ID_PROVINSI}, Kabupaten ID: ${ID_KABUPATEN})` 
+);
+console.log("=".repeat(50));
+
 // Validasi environment variables
-if (!COOKIE || !TOKEN || !INITIAL_GC_TOKEN) {
+if (!COOKIE || !TOKEN) {
   console.error("❌ ERROR: Environment variables tidak lengkap!");
   console.error("Pastikan file .env sudah dibuat dan berisi:");
   console.error("  - COOKIE");
   console.error("  - TOKEN");
-  console.error("  - INITIAL_GC_TOKEN");
   console.error("\nCopy dari .env.example dan isi dengan nilai yang sesuai.");
   process.exit(1);
 }
