@@ -28,7 +28,7 @@ const CITY = process.env.CITY || "Bontang";
 console.log("🚀 Starting Groundcheck Script");
 console.log("=".repeat(50));
 console.log(
-  `🏙️  Target Location: ${CITY} (Provinsi ID: ${ID_PROVINSI}, Kabupaten ID: ${ID_KABUPATEN})` 
+  `🏙️  Target Location: ${CITY} (Provinsi ID: ${ID_PROVINSI}, Kabupaten ID: ${ID_KABUPATEN})`,
 );
 console.log("=".repeat(50));
 
@@ -59,7 +59,23 @@ async function fetchGcTokenFromPage(): Promise<string | null> {
   try {
     const response = await fetch("https://matchapro.web.bps.go.id/dirgc", {
       headers: {
-        Cookie: COOKIE,
+        accept: "*/*",
+        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+
+        // CIRI WEBVIEW ANDROID
+        "user-agent":
+          "Mozilla/5.0 (Linux; Android 13; Pixel 6 Build/TQ3A.230805.001) " +
+          "AppleWebKit/537.36 (KHTML, like Gecko) " +
+          "Version/4.0 Chrome/120.0.6099.144 Mobile Safari/537.36 wv",
+
+        // Capacitor default behaviour
+        "x-requested-with": "com.matchapro.app",
+
+        // biasanya mobile
+        "sec-ch-ua-mobile": "?1",
+        "sec-ch-ua-platform": '"Android"',
+
+        cookie: COOKIE,
       },
     });
 
@@ -122,17 +138,26 @@ const getDirektoriUsaha = async (start: number, limit: number) => {
       headers: {
         accept: "*/*",
         "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "sec-ch-ua":
-          '"Brave";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"macOS"',
-        "x-requested-with": "XMLHttpRequest",
-        cookie: COOKIE,
+
+        // CIRI WEBVIEW ANDROID
+        "user-agent":
+          "Mozilla/5.0 (Linux; Android 13; Pixel 6 Build/TQ3A.230805.001) " +
+          "AppleWebKit/537.36 (KHTML, like Gecko) " +
+          "Version/4.0 Chrome/120.0.6099.144 Mobile Safari/537.36 wv",
+
+        // Capacitor default behaviour
+        "x-requested-with": "com.matchapro.app",
+
+        // biasanya mobile
+        "sec-ch-ua-mobile": "?1",
+        "sec-ch-ua-platform": '"Android"',
+
         Referer: "https://matchapro.web.bps.go.id/dirgc",
+        cookie: COOKIE,
       },
       body: params.toString(),
       method: "POST",
-    }
+    },
   );
 
   console.log("Response status:", response.status);
@@ -151,7 +176,7 @@ const getDirektoriUsaha = async (start: number, limit: number) => {
       console.error("4. Lakukan request POST ke endpoint yang sama");
       console.error("5. Copy cookie terbaru dari Request Headers");
       console.error(
-        "6. Copy _token dari Form Data atau decode XSRF-TOKEN dari cookie"
+        "6. Copy _token dari Form Data atau decode XSRF-TOKEN dari cookie",
       );
       console.error("7. Update variabel COOKIE dan TOKEN di file ini\n");
     }
@@ -164,13 +189,13 @@ const getDirektoriUsaha = async (start: number, limit: number) => {
 };
 
 async function getLatLngFromMaps(
-  nama_usaha: string
+  nama_usaha: string,
 ): Promise<{ lat: number | null; lng: number | null; hasilgc: number }> {
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
   try {
     const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(
-      nama_usaha
+      nama_usaha,
     )}`;
     await page.goto(searchUrl, { waitUntil: "networkidle2" });
 
@@ -205,7 +230,7 @@ function calculateSimilarityWithFuse(
   inputNama: string,
   inputAlamat: string | undefined,
   gmapsNama: string,
-  gmapsAlamat: string
+  gmapsAlamat: string,
 ): number {
   // Config Fuse.js untuk matching
   const fuseOptions = {
@@ -268,7 +293,7 @@ function calculateSimilarityWithFuse(
  */
 export async function getLatLngFromGoogleMapsPuppeteer(
   nama_usaha: string,
-  alamat_usaha?: string
+  alamat_usaha?: string,
 ): Promise<{
   lat: number | null;
   lng: number | null;
@@ -284,7 +309,7 @@ export async function getLatLngFromGoogleMapsPuppeteer(
     const searchQuery = `${nama_usaha} ${CITY}`;
 
     const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(
-      searchQuery
+      searchQuery,
     )}`;
 
     console.log("Searching Google Maps URL:", searchUrl);
@@ -318,7 +343,7 @@ export async function getLatLngFromGoogleMapsPuppeteer(
         if (alamatElement) {
           gmapsAlamat = await page.evaluate(
             (el) => el.textContent,
-            alamatElement
+            alamatElement,
           );
         }
       } catch (e) {
@@ -386,8 +411,8 @@ export async function getLatLngFromGoogleMapsPuppeteer(
           console.log(
             `  [${i + 1}] ${gmapsNama?.substring(
               0,
-              40
-            )} - ${gmapsAlamat?.substring(0, 40)}`
+              40,
+            )} - ${gmapsAlamat?.substring(0, 40)}`,
           );
 
           // Calculate similarity using Fuse.js
@@ -395,7 +420,7 @@ export async function getLatLngFromGoogleMapsPuppeteer(
             nama_usaha,
             alamat_usaha,
             gmapsNama,
-            gmapsAlamat
+            gmapsAlamat,
           );
 
           console.log(`      Similarity: ${totalScore.toFixed(1)}% (Fuse.js)`);
@@ -414,8 +439,8 @@ export async function getLatLngFromGoogleMapsPuppeteer(
       if (bestMatch && bestScore >= 40) {
         console.log(
           `✅ Best match: [${bestIndex + 1}] with score ${bestScore.toFixed(
-            1
-          )}%`
+            1,
+          )}%`,
         );
         console.log(`   Nama: ${bestMatch.gmapsNama}`);
         console.log(`   Alamat: ${bestMatch.gmapsAlamat}`);
@@ -439,13 +464,13 @@ export async function getLatLngFromGoogleMapsPuppeteer(
               timeout: 5000,
             });
             const addressButton = await page.$(
-              'button[data-item-id="address"]'
+              'button[data-item-id="address"]',
             );
 
             if (addressButton) {
               addressText = await page.evaluate(
                 (el) => el.textContent,
-                addressButton
+                addressButton,
               );
               console.log(`📍 Address found: ${addressText}`);
 
@@ -462,7 +487,7 @@ export async function getLatLngFromGoogleMapsPuppeteer(
               console.log(`✅ Location verified in ${CITY}`);
             } else {
               console.log(
-                "⚠️ Address element not found, proceeding without validation"
+                "⚠️ Address element not found, proceeding without validation",
               );
             }
           } catch (e) {
@@ -476,8 +501,8 @@ export async function getLatLngFromGoogleMapsPuppeteer(
             const lng = parseFloat(match[2]);
             console.log(
               `✅ Koordinat ditemukan: ${lat}, ${lng} (similarity: ${bestScore.toFixed(
-                1
-              )}%)`
+                1,
+              )}%)`,
             );
             await browser.close();
             return {
@@ -496,8 +521,8 @@ export async function getLatLngFromGoogleMapsPuppeteer(
             const lng = parseFloat(match[2]);
             console.log(
               `✅ Koordinat ditemukan (fallback): ${lat}, ${lng} (similarity: ${bestScore.toFixed(
-                1
-              )}%)`
+                1,
+              )}%)`,
             );
             await browser.close();
             return {
@@ -512,15 +537,15 @@ export async function getLatLngFromGoogleMapsPuppeteer(
       } else {
         console.log(
           `❌ No good match found. Best score: ${bestScore.toFixed(
-            1
-          )}% (threshold: 40%)`
+            1,
+          )}% (threshold: 40%)`,
         );
         await browser.close();
         return {
           lat: null,
           lng: null,
           error: `Tidak ada hasil yang cocok (best score: ${bestScore.toFixed(
-            1
+            1,
           )}%)`,
         };
       }
@@ -545,7 +570,7 @@ export async function getLatLngFromGoogleMapsPuppeteer(
  */
 export async function getLatLngFromAddressOnly(
   alamat_usaha: string,
-  nama_usaha?: string
+  nama_usaha?: string,
 ): Promise<{
   lat: number | null;
   lng: number | null;
@@ -561,7 +586,7 @@ export async function getLatLngFromAddressOnly(
     const searchQuery = `${alamat_usaha}, ${CITY}`;
 
     const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(
-      searchQuery
+      searchQuery,
     )}`;
 
     console.log("🔍 Searching by address:", searchQuery);
@@ -591,7 +616,7 @@ export async function getLatLngFromAddressOnly(
         if (alamatElement) {
           gmapsAlamat = await page.evaluate(
             (el) => el.textContent,
-            alamatElement
+            alamatElement,
           );
         }
       } catch (e) {
@@ -605,7 +630,7 @@ export async function getLatLngFromAddressOnly(
           nama_usaha,
           alamat_usaha,
           gmapsNama,
-          gmapsAlamat
+          gmapsAlamat,
         );
         console.log(`   Similarity: ${similarityScore.toFixed(1)}%`);
       }
@@ -681,8 +706,8 @@ export async function getLatLngFromAddressOnly(
             console.log(
               `  [${i + 1}] ${gmapsNama?.substring(
                 0,
-                40
-              )} - ${gmapsAlamat?.substring(0, 40)}`
+                40,
+              )} - ${gmapsAlamat?.substring(0, 40)}`,
             );
 
             // Calculate similarity
@@ -693,7 +718,7 @@ export async function getLatLngFromAddressOnly(
                 nama_usaha,
                 alamat_usaha,
                 gmapsNama,
-                gmapsAlamat
+                gmapsAlamat,
               );
             } else {
               // Jika tidak ada nama usaha, hanya compare alamat
@@ -701,7 +726,7 @@ export async function getLatLngFromAddressOnly(
                 "",
                 alamat_usaha,
                 "",
-                gmapsAlamat
+                gmapsAlamat,
               );
             }
 
@@ -714,7 +739,7 @@ export async function getLatLngFromAddressOnly(
             }
           } catch (err) {
             console.log(
-              `  [${i + 1}] ⚠️ Error extracting info: ${err.message}`
+              `  [${i + 1}] ⚠️ Error extracting info: ${err.message}`,
             );
           }
         }
@@ -723,15 +748,15 @@ export async function getLatLngFromAddressOnly(
         if (bestMatch && bestScore >= 40) {
           console.log(
             `✅ Best match: [${bestIndex + 1}] with score ${bestScore.toFixed(
-              1
-            )}%`
+              1,
+            )}%`,
           );
           console.log(`   Nama: ${bestMatch.gmapsNama}`);
           console.log(`   Alamat: ${bestMatch.gmapsAlamat}`);
 
           // Klik hasil terbaik
           const linkElement = await bestMatch.result.$(
-            'a[href*="/maps/place/"]'
+            'a[href*="/maps/place/"]',
           );
           if (linkElement) {
             await linkElement.click();
@@ -748,13 +773,13 @@ export async function getLatLngFromAddressOnly(
                 timeout: 5000,
               });
               const addressButton = await page.$(
-                'button[data-item-id="address"]'
+                'button[data-item-id="address"]',
               );
 
               if (addressButton) {
                 addressText = await page.evaluate(
                   (el) => el.textContent,
-                  addressButton
+                  addressButton,
                 );
                 console.log(`📍 Address found: ${addressText}`);
 
@@ -781,8 +806,8 @@ export async function getLatLngFromAddressOnly(
               const lng = parseFloat(match[2]);
               console.log(
                 `✅ Koordinat ditemukan: ${lat}, ${lng} (similarity: ${bestScore.toFixed(
-                  1
-                )}%)`
+                  1,
+                )}%)`,
               );
               await browser.close();
               return {
@@ -801,8 +826,8 @@ export async function getLatLngFromAddressOnly(
               const lng = parseFloat(match[2]);
               console.log(
                 `✅ Koordinat ditemukan (fallback): ${lat}, ${lng} (similarity: ${bestScore.toFixed(
-                  1
-                )}%)`
+                  1,
+                )}%)`,
               );
               await browser.close();
               return {
@@ -817,15 +842,15 @@ export async function getLatLngFromAddressOnly(
         } else {
           console.log(
             `❌ No good match found. Best score: ${bestScore.toFixed(
-              1
-            )}% (threshold: 40%)`
+              1,
+            )}% (threshold: 40%)`,
           );
           await browser.close();
           return {
             lat: null,
             lng: null,
             error: `Tidak ada hasil yang cocok (best score: ${bestScore.toFixed(
-              1
+              1,
             )}%)`,
           };
         }
@@ -876,7 +901,7 @@ const exportDirektoriUsaha = async () => {
     console.log(
       `📥 Mengambil data ${currentStart + 1} - ${
         currentStart + currentLimit
-      } dari ${TOTAL_RECORDS}...`
+      } dari ${TOTAL_RECORDS}...`,
     );
 
     const response = await getDirektoriUsaha(currentStart, currentLimit);
@@ -889,7 +914,7 @@ const exportDirektoriUsaha = async () => {
     allData = allData.concat(response.data);
     console.log(`✅ Berhasil mengambil ${response.data.length} data`);
     console.log(
-      `📊 Total data terkumpul: ${allData.length}/${TOTAL_RECORDS}\n`
+      `📊 Total data terkumpul: ${allData.length}/${TOTAL_RECORDS}\n`,
     );
 
     currentStart += currentLimit;
@@ -924,7 +949,7 @@ const viewDirektoriUsaha = () => {
   if (!fs.existsSync(OUTPUT_FILE)) {
     console.error(`❌ File ${OUTPUT_FILE} tidak ditemukan!`);
     console.log(
-      `💡 Jalankan dulu: exportDirektoriUsaha() untuk mengambil data`
+      `💡 Jalankan dulu: exportDirektoriUsaha() untuk mengambil data`,
     );
     return;
   }
@@ -958,7 +983,7 @@ const viewDirektoriUsaha = () => {
     console.log(
       `    Lat/Long      : ${item.latitude || "N/A"} / ${
         item.longitude || "N/A"
-      }`
+      }`,
     );
   });
 
@@ -997,7 +1022,7 @@ const checkDirektoriUsaha = (idsbr: string | number): void => {
   console.log(`Skala Usaha   : ${usaha.skala_usaha}`);
   console.log(`Status        : ${usaha.status_perusahaan}`);
   console.log(
-    `Lat/Long      : ${usaha.latitude || "N/A"} / ${usaha.longitude || "N/A"}`
+    `Lat/Long      : ${usaha.latitude || "N/A"} / ${usaha.longitude || "N/A"}`,
   );
   console.log("=".repeat(60) + "\n");
 };
@@ -1042,9 +1067,9 @@ const geocodeAllDirektoriUsaha = async (concurrency: number = 5) => {
           data: successResults,
         },
         null,
-        2
+        2,
       ),
-      "utf-8"
+      "utf-8",
     );
 
     fs.writeFileSync(
@@ -1059,9 +1084,9 @@ const geocodeAllDirektoriUsaha = async (concurrency: number = 5) => {
           data: failedResults,
         },
         null,
-        2
+        2,
       ),
-      "utf-8"
+      "utf-8",
     );
   };
 
@@ -1074,7 +1099,7 @@ const geocodeAllDirektoriUsaha = async (concurrency: number = 5) => {
       try {
         const result = await getLatLngFromGoogleMapsPuppeteer(
           nama_usaha,
-          alamat_usaha
+          alamat_usaha,
         );
 
         processedCount++;
@@ -1100,7 +1125,7 @@ const geocodeAllDirektoriUsaha = async (concurrency: number = 5) => {
               result.lat
             }, ${result.lng} (match: ${
               result.similarity_score?.toFixed(1) || 100
-            }%)`
+            }%)`,
           );
           return { success: true, data: successData };
         } else {
@@ -1119,7 +1144,7 @@ const geocodeAllDirektoriUsaha = async (concurrency: number = 5) => {
           console.log(
             `${progress} ❌ ${nama_usaha.substring(0, 40)}... → ${
               result.error || "Gagal"
-            }`
+            }`,
           );
           return { success: false, data: failedData };
         }
@@ -1141,7 +1166,7 @@ const geocodeAllDirektoriUsaha = async (concurrency: number = 5) => {
         console.log(
           `${progress} ❌ ${nama_usaha.substring(0, 40)}... → Error: ${
             error.message
-          }`
+          }`,
         );
         return { success: false, data: failedData };
       }
@@ -1158,7 +1183,7 @@ const geocodeAllDirektoriUsaha = async (concurrency: number = 5) => {
     // Save progress setelah setiap batch selesai
     saveProgress();
     console.log(
-      `💾 Progress saved: ${successResults.length} sukses, ${failedResults.length} gagal\n`
+      `💾 Progress saved: ${successResults.length} sukses, ${failedResults.length} gagal\n`,
     );
 
     // Small delay between batches
@@ -1194,7 +1219,7 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
   if (!fs.existsSync(INPUT_FILE)) {
     console.error(`❌ File ${INPUT_FILE} tidak ditemukan!`);
     console.log(
-      `💡 Jalankan dulu: geocode-all untuk menghasilkan file tersebut`
+      `💡 Jalankan dulu: geocode-all untuk menghasilkan file tersebut`,
     );
     return;
   }
@@ -1204,7 +1229,7 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
   const failedData = jsonData.data;
 
   console.log(
-    `🔄 Retry geocoding untuk ${failedData.length} data yang gagal...`
+    `🔄 Retry geocoding untuk ${failedData.length} data yang gagal...`,
   );
   console.log(`🔍 Strategi: Menggunakan ALAMAT saja (tanpa nama usaha)`);
   console.log(`⚡ Parallel processing: ${concurrency} concurrent requests\n`);
@@ -1237,9 +1262,9 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
           data: retrySuccessResults,
         },
         null,
-        2
+        2,
       ),
-      "utf-8"
+      "utf-8",
     );
 
     // Save retry failed
@@ -1255,9 +1280,9 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
           data: retryFailedResults,
         },
         null,
-        2
+        2,
       ),
-      "utf-8"
+      "utf-8",
     );
 
     // Update main success file dengan menambahkan hasil retry yang berhasil
@@ -1277,9 +1302,9 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
             data: combinedSuccess,
           },
           null,
-          2
+          2,
         ),
-        "utf-8"
+        "utf-8",
       );
     }
   };
@@ -1318,7 +1343,7 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
               result.lat
             }, ${result.lng} (match: ${
               result.similarity_score?.toFixed(1) || 100
-            }%) [by address]`
+            }%) [by address]`,
           );
           return { success: true, data: successData };
         } else {
@@ -1337,7 +1362,7 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
           console.log(
             `${progress} ❌ ${nama_usaha.substring(0, 40)}... → ${
               result.error || "Gagal"
-            }`
+            }`,
           );
           return { success: false, data: failedData };
         }
@@ -1359,7 +1384,7 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
         console.log(
           `${progress} ❌ ${nama_usaha.substring(0, 40)}... → Error: ${
             error.message
-          }`
+          }`,
         );
         return { success: false, data: failed };
       }
@@ -1376,7 +1401,7 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
     // Save progress setelah setiap batch
     saveProgress();
     console.log(
-      `💾 Progress saved: ${retrySuccessResults.length} sukses, ${retryFailedResults.length} gagal\n`
+      `💾 Progress saved: ${retrySuccessResults.length} sukses, ${retryFailedResults.length} gagal\n`,
     );
 
     // Small delay between batches
@@ -1399,7 +1424,7 @@ const retryGeocodeFailedByAddress = async (concurrency: number = 5) => {
   console.log(
     `📁 File sukses update : ${OUTPUT_SUCCESS} (${
       existingSuccessResults.length + retrySuccessResults.length
-    } total)`
+    } total)`,
   );
   console.log("=".repeat(60) + "\n");
 };
@@ -1417,7 +1442,7 @@ const sendConfirmation = async (
   latitude: number,
   longitude: number,
   hasilgc: number,
-  gcToken: string
+  gcToken: string,
 ): Promise<{ success: boolean; message: string }> => {
   const params = new URLSearchParams();
   params.append("perusahaan_id", perusahaan_id.toString());
@@ -1441,17 +1466,26 @@ const sendConfirmation = async (
         headers: {
           accept: "*/*",
           "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "sec-ch-ua":
-            '"Brave";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-          "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": '"macOS"',
-          "x-requested-with": "XMLHttpRequest",
-          cookie: COOKIE,
+
+          // CIRI WEBVIEW ANDROID
+          "user-agent":
+            "Mozilla/5.0 (Linux; Android 13; Pixel 6 Build/TQ3A.230805.001) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Version/4.0 Chrome/120.0.6099.144 Mobile Safari/537.36 wv",
+
+          // Capacitor default behaviour
+          "x-requested-with": "com.matchapro.app",
+
+          // biasanya mobile
+          "sec-ch-ua-mobile": "?1",
+          "sec-ch-ua-platform": '"Android"',
+
           Referer: "https://matchapro.web.bps.go.id/dirgc",
+          cookie: COOKIE,
         },
         body: params.toString(),
         method: "POST",
-      }
+      },
     );
 
     const resultText = await response.text();
@@ -1486,7 +1520,7 @@ const confirmDirektoriUsaha = async (
   idsbr: string | number,
   latitude: number,
   longitude: number,
-  hasilgc: number
+  hasilgc: number,
 ): Promise<void> => {
   const OUTPUT_FILE = `${RESULT_DIR}/direktori_usaha.json`;
   if (!fs.existsSync(OUTPUT_FILE)) {
@@ -1507,7 +1541,7 @@ const confirmDirektoriUsaha = async (
     latitude,
     longitude,
     hasilgc,
-    INITIAL_GC_TOKEN
+    INITIAL_GC_TOKEN,
   );
 
   if (result.success) {
@@ -1534,7 +1568,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
   if (!fs.existsSync(INPUT_FILE)) {
     console.error(`❌ File ${INPUT_FILE} tidak ditemukan!`);
     console.log(
-      `💡 Jalankan dulu: geocode-all untuk menghasilkan file tersebut`
+      `💡 Jalankan dulu: geocode-all untuk menghasilkan file tersebut`,
     );
     return;
   }
@@ -1566,7 +1600,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
 
   // Buat Set untuk tracking perusahaan_id yang sudah dikonfirmasi
   const confirmedIds = new Set(
-    successResults.map((item) => item.perusahaan_id.toString())
+    successResults.map((item) => item.perusahaan_id.toString()),
   );
 
   console.log("\n" + "=".repeat(60));
@@ -1596,9 +1630,9 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
           data: successResults,
         },
         null,
-        2
+        2,
       ),
-      "utf-8"
+      "utf-8",
     );
 
     // Simpan hasil gagal
@@ -1614,9 +1648,9 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
           data: failedResults,
         },
         null,
-        2
+        2,
       ),
-      "utf-8"
+      "utf-8",
     );
   };
 
@@ -1633,7 +1667,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       "network error",
     ];
     return downPatterns.some((pattern) =>
-      errorMessage.toLowerCase().includes(pattern.toLowerCase())
+      errorMessage.toLowerCase().includes(pattern.toLowerCase()),
     );
   };
 
@@ -1673,8 +1707,8 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       console.log(
         `${progress} ⏭️  ${nama_usaha.substring(
           0,
-          40
-        )}... → Already confirmed (skipped)`
+          40,
+        )}... → Already confirmed (skipped)`,
       );
       continue; // Skip ke iterasi berikutnya
     }
@@ -1687,7 +1721,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       latitude,
       longitude,
       hasilgc,
-      currentGcToken
+      currentGcToken,
     );
 
     // Cek jika token invalid, ambil token baru dan retry
@@ -1701,7 +1735,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       if (newToken) {
         currentGcToken = newToken;
         console.log(
-          `   🔑 Token baru diperoleh: ${currentGcToken.substring(0, 20)}...`
+          `   🔑 Token baru diperoleh: ${currentGcToken.substring(0, 20)}...`,
         );
         console.log(`   🔄 Retry konfirmasi dengan token baru...`);
 
@@ -1711,7 +1745,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
           latitude,
           longitude,
           hasilgc,
-          currentGcToken
+          currentGcToken,
         );
 
         if (result.success) {
@@ -1721,7 +1755,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
         }
       } else {
         console.log(
-          `   ❌ Gagal mengambil token baru! Melanjutkan dengan token lama...`
+          `   ❌ Gagal mengambil token baru! Melanjutkan dengan token lama...`,
         );
       }
     }
@@ -1734,7 +1768,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       if (result.newGcToken) {
         currentGcToken = result.newGcToken;
         console.log(
-          `   🔑 New gc_token received: ${currentGcToken.substring(0, 20)}...`
+          `   🔑 New gc_token received: ${currentGcToken.substring(0, 20)}...`,
         );
       }
 
@@ -1756,7 +1790,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       console.log(
         `${progress} ✅ ${nama_usaha.substring(0, 40)}... → Sukses (${
           hasilgcLabels[hasilgc]
-        })`
+        })`,
       );
 
       // Turunkan delay jika sukses terus menerus (setiap 15 sukses)
@@ -1770,7 +1804,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       if (successResults.length % 10 === 0) {
         saveResults();
         console.log(
-          `   💾 Progress saved: ${successResults.length} sukses, ${failedResults.length} gagal, ${skippedCount} skipped\n`
+          `   💾 Progress saved: ${successResults.length} sukses, ${failedResults.length} gagal, ${skippedCount} skipped\n`,
         );
       }
     } else {
@@ -1787,7 +1821,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
         const oldDelay = currentDelay;
         currentDelay = Math.min(MAX_DELAY, currentDelay + 500);
         console.log(
-          `   ⚠️  Rate limit detected! Meningkatkan delay dari ${oldDelay}ms → ${currentDelay}ms`
+          `   ⚠️  Rate limit detected! Meningkatkan delay dari ${oldDelay}ms → ${currentDelay}ms`,
         );
 
         // Tunggu sebentar sebelum retry
@@ -1801,7 +1835,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
           latitude,
           longitude,
           hasilgc,
-          currentGcToken
+          currentGcToken,
         );
 
         // Jika retry gagal karena token invalid, refresh token dan retry lagi
@@ -1810,7 +1844,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
           result.message.includes("Token invalid atau sudah terpakai")
         ) {
           console.log(
-            `   ⚠️  Token expired setelah rate limit! Mengambil token baru...`
+            `   ⚠️  Token expired setelah rate limit! Mengambil token baru...`,
           );
 
           const newToken = await fetchGcTokenFromPage();
@@ -1819,8 +1853,8 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
             console.log(
               `   🔑 Token baru diperoleh: ${currentGcToken.substring(
                 0,
-                20
-              )}...`
+                20,
+              )}...`,
             );
             console.log(`   🔄 Retry sekali lagi dengan token baru...`);
 
@@ -1830,14 +1864,14 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
               latitude,
               longitude,
               hasilgc,
-              currentGcToken
+              currentGcToken,
             );
 
             if (result.success) {
               console.log(`   ✅ Retry dengan token baru berhasil!`);
             } else {
               console.log(
-                `   ❌ Retry dengan token baru gagal: ${result.message}`
+                `   ❌ Retry dengan token baru gagal: ${result.message}`,
               );
             }
           } else {
@@ -1871,14 +1905,14 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
           console.log(
             `${progress} ✅ ${nama_usaha.substring(0, 40)}... → Sukses (${
               hasilgcLabels[hasilgc]
-            }) [retry]`
+            }) [retry]`,
           );
 
           // Simpan progress setiap 10 sukses
           if (successResults.length % 10 === 0) {
             saveResults();
             console.log(
-              `   💾 Progress saved: ${successResults.length} sukses, ${failedResults.length} gagal, ${skippedCount} skipped\n`
+              `   💾 Progress saved: ${successResults.length} sukses, ${failedResults.length} gagal, ${skippedCount} skipped\n`,
             );
           }
 
@@ -1886,7 +1920,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
           console.log(
             `   ⏳ Menunggu ${
               currentDelay / 1000
-            } detik sebelum request berikutnya...\n`
+            } detik sebelum request berikutnya...\n`,
           );
           await new Promise((resolve) => setTimeout(resolve, currentDelay));
           continue;
@@ -1911,7 +1945,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       };
       failedResults.push(failedData);
       console.log(
-        `${progress} ❌ ${nama_usaha.substring(0, 40)}... → ${result.message}`
+        `${progress} ❌ ${nama_usaha.substring(0, 40)}... → ${result.message}`,
       );
 
       // Simpan juga saat gagal
@@ -1924,7 +1958,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
       ) {
         console.log("\n" + "⚠️ ".repeat(30));
         console.log(
-          `🔴 SERVER TERDETEKSI DOWN (${consecutiveFailures} kegagalan berturut-turut)`
+          `🔴 SERVER TERDETEKSI DOWN (${consecutiveFailures} kegagalan berturut-turut)`,
         );
         console.log(`⏳ Menunggu ${WAIT_TIME_ON_DOWN / 1000} detik...`);
         console.log("⚠️ ".repeat(30) + "\n");
@@ -1939,7 +1973,7 @@ const confirmFromGeocodeSuccess = async (): Promise<void> => {
     console.log(
       `   ⏳ Menunggu ${
         currentDelay / 1000
-      } detik sebelum request berikutnya...\n`
+      } detik sebelum request berikutnya...\n`,
     );
     await new Promise((resolve) => setTimeout(resolve, currentDelay));
   }
@@ -2016,7 +2050,7 @@ const updateGeocodeFilesWithSumberData = async () => {
     fs.writeFileSync(
       SUCCESS_FILE,
       JSON.stringify(successData, null, 2),
-      "utf-8"
+      "utf-8",
     );
     console.log(`   ✅ Updated ${updatedCount} records in ${SUCCESS_FILE}`);
     updatedFiles++;
@@ -2064,7 +2098,7 @@ const updateGeocodeFilesWithSumberData = async () => {
     console.log(
       `   (Set to "Unknown": ${notFoundIds.slice(0, 5).join(", ")}${
         notFoundIds.length > 5 ? "..." : ""
-      })`
+      })`,
     );
   }
   console.log("=".repeat(60) + "\n");
@@ -2090,12 +2124,12 @@ const main = async () => {
     const hasilgc = parseInt(args[4]);
     if (![0, 1, 3, 4].includes(hasilgc)) {
       console.error(
-        `❌ hasilgc harus salah satu dari: 0 (Tidak ditemukan), 1 (Ditemukan), 3 (Tutup), 4 (Ganda)`
+        `❌ hasilgc harus salah satu dari: 0 (Tidak ditemukan), 1 (Ditemukan), 3 (Tutup), 4 (Ganda)`,
       );
       return;
     }
     console.log(
-      `🌐 Mengirim konfirmasi untuk IDSBR: ${idsbr} (Hasil GC: ${hasilgc} - ${hasilgcLabels[hasilgc]})`
+      `🌐 Mengirim konfirmasi untuk IDSBR: ${idsbr} (Hasil GC: ${hasilgc} - ${hasilgcLabels[hasilgc]})`,
     );
     await confirmDirektoriUsaha(idsbr, latitude, longitude, hasilgc);
   } else if (command === "confirm-batch") {
@@ -2121,7 +2155,7 @@ const main = async () => {
     const result = await getLatLngFromGoogleMapsPuppeteer(nama_usaha);
     if (result.lat && result.lng) {
       console.log(
-        `✅ Koordinat ditemukan: lat=${result.lat}, lng=${result.lng}`
+        `✅ Koordinat ditemukan: lat=${result.lat}, lng=${result.lng}`,
       );
     } else {
       console.log("❌ Koordinat tidak ditemukan.");
@@ -2137,7 +2171,7 @@ const main = async () => {
     console.log("   npx tsx groundcheck.ts check <idsbr>");
     console.log("\n4. Konfirmasi direktori usaha:");
     console.log(
-      "   npx tsx groundcheck.ts confirm <idsbr> <latitude> <longitude> <hasilgc>"
+      "   npx tsx groundcheck.ts confirm <idsbr> <latitude> <longitude> <hasilgc>",
     );
     console.log("      hasilgc:");
     console.log("        0 = Tidak ditemukan");
@@ -2145,14 +2179,14 @@ const main = async () => {
     console.log("        3 = Tutup");
     console.log("        4 = Ganda");
     console.log(
-      "\n5. Konfirmasi batch dari hasil geocoding (sequential dengan gc_token):"
+      "\n5. Konfirmasi batch dari hasil geocoding (sequential dengan gc_token):",
     );
     console.log("   npx tsx groundcheck.ts confirm-batch");
     console.log(
-      "   (Kirim semua data dari hasil_geocoding_sukses.json ke server)"
+      "   (Kirim semua data dari hasil_geocoding_sukses.json ke server)",
     );
     console.log(
-      "   (Hasil disimpan ke hasil_confirm_sukses.json & hasil_confirm_gagal.json)"
+      "   (Hasil disimpan ke hasil_confirm_sukses.json & hasil_confirm_gagal.json)",
     );
     console.log("\n6. Geocode nama usaha via Google Maps:");
     console.log("   npx tsx groundcheck.ts geocode <nama_usaha>");
@@ -2161,23 +2195,23 @@ const main = async () => {
     console.log("   Default concurrency: 5 (optional: 1-20)");
     console.log("   Contoh: npx tsx groundcheck.ts geocode-all 10");
     console.log(
-      "   (Hasil disimpan ke hasil_geocoding_sukses.json & hasil_geocoding_gagal.json)"
+      "   (Hasil disimpan ke hasil_geocoding_sukses.json & hasil_geocoding_gagal.json)",
     );
     console.log("\n8. Retry geocode untuk data gagal menggunakan ALAMAT saja:");
     console.log("   npx tsx groundcheck.ts retry-geocode [concurrency]");
     console.log("   Default concurrency: 5");
     console.log("   Contoh: npx tsx groundcheck.ts retry-geocode 3");
     console.log(
-      "   (Membaca hasil_geocoding_gagal.json, retry dengan alamat saja)"
+      "   (Membaca hasil_geocoding_gagal.json, retry dengan alamat saja)",
     );
     console.log(
-      "   (Hasil disimpan ke hasil_retry_sukses.json & hasil_retry_gagal.json)"
+      "   (Hasil disimpan ke hasil_retry_sukses.json & hasil_retry_gagal.json)",
     );
     console.log("   (File hasil_geocoding_sukses.json akan di-update)");
     console.log("\n9. Update file geocoding dengan sumber_data dari master:");
     console.log("   npx tsx groundcheck.ts update-sumber-data");
     console.log(
-      "   (Update hasil_geocoding_sukses.json & hasil_geocoding_gagal.json)"
+      "   (Update hasil_geocoding_sukses.json & hasil_geocoding_gagal.json)",
     );
     console.log("   (Menambahkan field sumber_data dari direktori_usaha.json)");
     console.log("=".repeat(50));
