@@ -1574,7 +1574,7 @@ const confirmFromLatLong = async (): Promise<void> => {
   }
 
   const confirmedIds = new Set(
-    successResults.map((item) => item.perusahaan_id.toString()),
+    successResults.map((item) => item.idsbr.toString()),
   );
 
   console.log("\n" + "=".repeat(60));
@@ -1673,16 +1673,16 @@ const confirmFromLatLong = async (): Promise<void> => {
       continue;
     }
 
-    if (confirmedIds.has(perusahaan_id.toString())) {
+    if (confirmedIds.has(idsbr.toString())) {
       skippedCount++;
       console.log(
-        `${progress} ⏭️  ${nama_usaha?.substring(0, 40) || perusahaan_id}... → Already confirmed (skipped)`,
+        `${progress} ⏭️  ${nama_usaha?.substring(0, 40) || idsbr}... → Already confirmed (skipped)`,
       );
       continue;
     }
 
     console.log(
-      `${progress} Konfirmasi: ${nama_usaha?.substring(0, 50) || perusahaan_id}...`,
+      `${progress} Konfirmasi: ${nama_usaha?.substring(0, 50) || idsbr}...`,
     );
     console.log(`   🔑 Using gc_token: ${currentGcToken.substring(0, 20)}...`);
 
@@ -1738,7 +1738,7 @@ const confirmFromLatLong = async (): Promise<void> => {
         confirmed_at: new Date().toISOString(),
       };
       successResults.push(successData);
-      confirmedIds.add(perusahaan_id.toString());
+      confirmedIds.add(idsbr.toString());
       console.log(
         `${progress} ✅ ${nama_usaha?.substring(0, 40) || perusahaan_id}... → Sukses (${hasilgcLabels[hasilgc] || hasilgc})`,
       );
