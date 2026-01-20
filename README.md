@@ -96,6 +96,16 @@ npx tsx groundcheck.ts export
 
 Mengambil semua data direktori usaha dari API dan menyimpan ke `direktori_usaha.json`.
 
+### 1.1 Export Data dengan Koordinat (lat,long)
+
+```bash
+bun run groundcheck.ts export-latlong
+# atau
+npx tsx groundcheck.ts export-latlong
+```
+
+Output: CSV/JSON berisi kolom: `id`, `nama`, `latitude`, `longitude`. File hasil dapat digunakan untuk analisis spasial atau visualisasi di GIS (mis. QGIS, ArcGIS, atau peta web).
+
 ### 2. Lihat Data dari File
 
 ```bash

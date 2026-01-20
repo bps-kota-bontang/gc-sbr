@@ -2,6 +2,7 @@ import * as fs from "fs";
 import puppeteer from "puppeteer";
 import Fuse from "fuse.js";
 import dotenv from "dotenv";
+import { randomInt } from "crypto";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -111,7 +112,11 @@ const hasilgcLabels: Record<number, string> = {
   4: "Ganda",
 };
 
-const getDirektoriUsaha = async (start: number, limit: number) => {
+const getDirektoriUsaha = async (
+  start: number,
+  limit: number,
+  hasLatLong?: boolean,
+) => {
   // Gunakan URLSearchParams untuk membuat body URL-encoded
   const params = new URLSearchParams();
   params.append("_token", TOKEN);
@@ -124,12 +129,12 @@ const getDirektoriUsaha = async (start: number, limit: number) => {
   params.append("kecamatan", "");
   params.append("desa", "");
   params.append("status_filter", "aktif");
-  params.append("rtotal", "21977");
+  params.append("rtotal", hasLatLong ? "10933" : "21977");
   params.append("sumber_data", "");
   params.append("skala_usaha", "");
   params.append("idsbr", "");
   params.append("history_profiling", "");
-  params.append("f_latlong", "TIDAK");
+  params.append("f_latlong", hasLatLong ? "ADA" : "TIDAK");
   params.append("f_gc", "");
 
   const response = await fetch(
@@ -872,13 +877,15 @@ export async function getLatLngFromAddressOnly(
   }
 }
 
-const exportDirektoriUsaha = async () => {
+const exportDirektoriUsaha = async (
+  outputFile: string,
+  hasLatLong?: boolean,
+) => {
   const LIMIT_PER_REQUEST = 1000; // Ambil 1000 data per request
-  const OUTPUT_FILE = `${RESULT_DIR}/direktori_usaha.json`;
 
   // Ambil response pertama untuk mendapatkan total records
   console.log("🔍 Mengambil informasi total records...");
-  const firstResponse = await getDirektoriUsaha(0, 1);
+  const firstResponse = await getDirektoriUsaha(0, 1, hasLatLong);
 
   if (!firstResponse || !firstResponse.recordsTotal) {
     console.error("❌ Gagal mengambil informasi total records.");
@@ -904,7 +911,11 @@ const exportDirektoriUsaha = async () => {
       } dari ${TOTAL_RECORDS}...`,
     );
 
-    const response = await getDirektoriUsaha(currentStart, currentLimit);
+    const response = await getDirektoriUsaha(
+      currentStart,
+      currentLimit,
+      hasLatLong,
+    );
 
     if (!response || !response.data) {
       console.error("❌ Gagal mengambil data. Menghentikan proses.");
@@ -937,9 +948,9 @@ const exportDirektoriUsaha = async () => {
     data: allData,
   };
 
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(result, null, 2), "utf-8");
+  fs.writeFileSync(outputFile, JSON.stringify(result, null, 2), "utf-8");
 
-  console.log(`\n✅ Selesai! Data berhasil disimpan ke: ${OUTPUT_FILE}`);
+  console.log(`\n✅ Selesai! Data berhasil disimpan ke: ${outputFile}`);
   console.log(`📊 Total data yang disimpan: ${allData.length} records`);
 };
 
@@ -1443,14 +1454,23 @@ const sendConfirmation = async (
   longitude: number,
   hasilgc: number,
   gcToken: string,
+  isEdit?: boolean,
 ): Promise<{ success: boolean; message: string }> => {
   const params = new URLSearchParams();
+  const durationTimeOnPage = randomInt(30, 60); // seconds
   params.append("perusahaan_id", perusahaan_id.toString());
   params.append("latitude", latitude.toString());
   params.append("longitude", longitude.toString());
   params.append("hasilgc", hasilgc.toString());
   params.append("gc_token", gcToken);
   params.append("_token", TOKEN);
+  params.append("time_on_page", durationTimeOnPage.toString());
+  if (isEdit) {
+    params.append("edit_nama", "0");
+    params.append("edit_alamat", "0");
+    params.append("nama_usaha", "");
+    params.append("alamat_usaha", "");
+  }
 
   if (!(hasilgc in hasilgcLabels)) {
     return {
@@ -1511,6 +1531,308 @@ const sendConfirmation = async (
   } catch (error) {
     return { success: false, message: error.message, newGcToken: null };
   }
+};
+
+/**
+ * Konfirmasi batch menggunakan file direktori_usaha_latlong.json
+ * Mengirim konfirmasi ke server dengan hasilgc default = 1
+ */
+const confirmFromLatLong = async (): Promise<void> => {
+  const INPUT_FILE = `${RESULT_DIR}/direktori_usaha_latlong.json`;
+  const OUTPUT_SUCCESS = `${RESULT_DIR}/hasil_confirm_latlong_sukses.json`;
+  const OUTPUT_FAILED = `${RESULT_DIR}/hasil_confirm_latlong_gagal.json`;
+
+  if (!fs.existsSync(INPUT_FILE)) {
+    console.error(`❌ File ${INPUT_FILE} tidak ditemukan!`);
+    console.log(`💡 Jalankan dulu: export-latlong untuk membuat file tersebut`);
+    return;
+  }
+
+  const fileContent = fs.readFileSync(INPUT_FILE, "utf-8");
+  const jsonData = JSON.parse(fileContent);
+  const allData = jsonData.data || jsonData;
+
+  if (!allData || allData.length === 0) {
+    console.log("⚠️ Tidak ada data untuk dikonfirmasi.");
+    return;
+  }
+
+  // Load existing results jika ada
+  let successResults: any[] = [];
+  let failedResults: any[] = [];
+
+  if (fs.existsSync(OUTPUT_SUCCESS)) {
+    const successContent = fs.readFileSync(OUTPUT_SUCCESS, "utf-8");
+    const successJson = JSON.parse(successContent);
+    successResults = successJson.data || [];
+  }
+
+  if (fs.existsSync(OUTPUT_FAILED)) {
+    const failedContent = fs.readFileSync(OUTPUT_FAILED, "utf-8");
+    const failedJson = JSON.parse(failedContent);
+    failedResults = failedJson.data || [];
+  }
+
+  const confirmedIds = new Set(
+    successResults.map((item) => item.perusahaan_id.toString()),
+  );
+
+  console.log("\n" + "=".repeat(60));
+  console.log(`🚀 KONFIRMASI DARI ${INPUT_FILE}`);
+  console.log("=".repeat(60));
+  console.log(`📊 Total data: ${allData.length}`);
+  console.log(`✅ Sudah sukses: ${successResults.length}`);
+  console.log(`❌ Sudah gagal: ${failedResults.length}`);
+  console.log(`⏭️  Akan di-skip: ${confirmedIds.size}`);
+  console.log(`🔑 Menggunakan gc_token chaining (sequential)`);
+  console.log("=".repeat(60) + "\n");
+
+  const saveResults = () => {
+    fs.writeFileSync(
+      OUTPUT_SUCCESS,
+      JSON.stringify(
+        {
+          metadata: {
+            total: successResults.length,
+            timestamp: new Date().toISOString(),
+            source: INPUT_FILE,
+          },
+          data: successResults,
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    fs.writeFileSync(
+      OUTPUT_FAILED,
+      JSON.stringify(
+        {
+          metadata: {
+            total: failedResults.length,
+            timestamp: new Date().toISOString(),
+            source: INPUT_FILE,
+          },
+          data: failedResults,
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+  };
+
+  const isServerDownError = (errorMessage: string): boolean => {
+    const downPatterns = [
+      "socket connection was closed",
+      "ECONNRESET",
+      "ECONNREFUSED",
+      "ETIMEDOUT",
+      "fetch failed",
+      "network error",
+    ];
+    return downPatterns.some((pattern) =>
+      errorMessage.toLowerCase().includes(pattern.toLowerCase()),
+    );
+  };
+
+  let consecutiveFailures = 0;
+  const MAX_CONSECUTIVE_FAILURES = 3;
+  const WAIT_TIME_ON_DOWN = 15000; // 15 detik
+  let currentGcToken = INITIAL_GC_TOKEN;
+  let skippedCount = 0;
+
+  // Adaptive delay
+  let currentDelay = 2000;
+  const MIN_DELAY = 2000;
+  const MAX_DELAY = 5000;
+  let consecutiveSuccesses = 0;
+
+  for (let i = 0; i < allData.length; i++) {
+    const usaha = allData[i];
+    const { idsbr, perusahaan_id, nama_usaha } = usaha;
+    const latitude = Number(usaha.latitude);
+    const longitude = Number(usaha.longitude);
+    const progress = `[${i + 1}/${allData.length}]`;
+
+    if (!perusahaan_id || isNaN(latitude) || isNaN(longitude)) {
+      failedResults.push({
+        idsbr,
+        perusahaan_id,
+        nama_usaha,
+        latitude: usaha.latitude,
+        longitude: usaha.longitude,
+        error: "Missing atau invalid perusahaan_id/latitude/longitude",
+        failed_at: new Date().toISOString(),
+      });
+      console.log(
+        `${progress} ❌ Skipped (invalid data): ${idsbr} ${nama_usaha}`,
+      );
+      saveResults();
+      continue;
+    }
+
+    if (confirmedIds.has(perusahaan_id.toString())) {
+      skippedCount++;
+      console.log(
+        `${progress} ⏭️  ${nama_usaha?.substring(0, 40) || perusahaan_id}... → Already confirmed (skipped)`,
+      );
+      continue;
+    }
+
+    console.log(
+      `${progress} Konfirmasi: ${nama_usaha?.substring(0, 50) || perusahaan_id}...`,
+    );
+    console.log(`   🔑 Using gc_token: ${currentGcToken.substring(0, 20)}...`);
+
+    const hasilgc = 1; // default per user request
+
+    let result = await sendConfirmation(
+      perusahaan_id,
+      latitude,
+      longitude,
+      hasilgc,
+      currentGcToken,
+      true,
+    );
+
+    // Jika token invalid, coba refresh
+    if (
+      !result.success &&
+      result.message.includes("Token invalid atau sudah terpakai")
+    ) {
+      console.log(`   ⚠️  Token expired! Mengambil token baru dari halaman...`);
+      const newToken = await fetchGcTokenFromPage();
+      if (newToken) {
+        currentGcToken = newToken;
+        result = await sendConfirmation(
+          perusahaan_id,
+          latitude,
+          longitude,
+          hasilgc,
+          currentGcToken,
+          true,
+        );
+      } else {
+        console.log(
+          `   ❌ Gagal mengambil token baru! Melanjutkan dengan token lama...`,
+        );
+      }
+    }
+
+    if (result.success) {
+      consecutiveFailures = 0;
+      consecutiveSuccesses++;
+
+      if (result.newGcToken) {
+        currentGcToken = result.newGcToken;
+      }
+      const successData = {
+        idsbr,
+        perusahaan_id,
+        nama_usaha,
+        latitude,
+        longitude,
+        hasilgc,
+        confirmed_at: new Date().toISOString(),
+      };
+      successResults.push(successData);
+      confirmedIds.add(perusahaan_id.toString());
+      console.log(
+        `${progress} ✅ ${nama_usaha?.substring(0, 40) || perusahaan_id}... → Sukses (${hasilgcLabels[hasilgc] || hasilgc})`,
+      );
+
+      if (consecutiveSuccesses >= 15 && currentDelay > MIN_DELAY) {
+        currentDelay = Math.max(MIN_DELAY, currentDelay - 200);
+        consecutiveSuccesses = 0;
+        console.log(`   ⚡ Delay dikurangi menjadi ${currentDelay}ms`);
+      }
+
+      if (successResults.length % 10 === 0) {
+        saveResults();
+        console.log(
+          `   💾 Progress saved: ${successResults.length} sukses, ${failedResults.length} gagal, ${skippedCount} skipped\n`,
+        );
+      }
+    } else {
+      const isRateLimited =
+        result.message.includes("429") ||
+        result.message.toLowerCase().includes("terlalu cepat") ||
+        result.message.toLowerCase().includes("rate limit") ||
+        result.message.toLowerCase().includes("Server sedang sibuk");
+      if (isRateLimited && currentDelay < MAX_DELAY) {
+        const oldDelay = currentDelay;
+        currentDelay = Math.min(MAX_DELAY, currentDelay + 500);
+        console.log(
+          `   ⚠️  Rate limit detected! Meningkatkan delay dari ${oldDelay}ms → ${currentDelay}ms`,
+        );
+        console.log(`   ⏳ Menunggu ${currentDelay / 1000} detik...\n`);
+        await new Promise((resolve) => setTimeout(resolve, currentDelay));
+
+        console.log(`   🔄 Retry konfirmasi...`);
+        result = await sendConfirmation(
+          perusahaan_id,
+          latitude,
+          longitude,
+          hasilgc,
+          currentGcToken,
+          true,
+        );
+      }
+
+      failedResults.push({
+        idsbr,
+        perusahaan_id,
+        nama_usaha,
+        latitude,
+        longitude,
+        hasilgc,
+        error: result.message,
+        failed_at: new Date().toISOString(),
+      });
+      console.log(
+        `${progress} ❌ ${nama_usaha?.substring(0, 40) || perusahaan_id}... → ${result.message}`,
+      );
+      saveResults();
+
+      // Check if server is down
+      if (
+        isServerDownError(result.message) &&
+        consecutiveFailures >= MAX_CONSECUTIVE_FAILURES
+      ) {
+        console.log("\n" + "⚠️ ".repeat(30));
+        console.log(
+          `🔴 SERVER TERDETEKSI DOWN (${consecutiveFailures} kegagalan berturut-turut)`,
+        );
+        console.log(`⏳ Menunggu ${WAIT_TIME_ON_DOWN / 1000} detik...`);
+        console.log("⚠️ ".repeat(30) + "\n");
+
+        await new Promise((resolve) => setTimeout(resolve, WAIT_TIME_ON_DOWN));
+        consecutiveFailures = 0;
+        console.log("🔄 Melanjutkan proses...\n");
+      }
+    }
+
+    console.log(
+      `   ⏳ Menunggu ${currentDelay / 1000} detik sebelum request berikutnya...\n`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, currentDelay));
+  }
+
+  // Final save
+  saveResults();
+
+  console.log("\n" + "=".repeat(60));
+  console.log("📊 HASIL KONFIRMASI DARI LATLONG");
+  console.log(`📊 Total data: ${allData.length}`);
+  console.log(`✅ Sukses: ${successResults.length}`);
+  console.log(`❌ Gagal: ${failedResults.length}`);
+  console.log(`⏭️  Skipped (already confirmed): ${skippedCount}`);
+  console.log(`📁 File sukses: ${OUTPUT_SUCCESS}`);
+  console.log(`📁 File gagal: ${OUTPUT_FAILED}`);
+  console.log(`🔑 Final gc_token: ${currentGcToken.substring(0, 20)}...`);
+  console.log("=".repeat(60) + "\n");
 };
 
 /**
@@ -2110,7 +2432,13 @@ const main = async () => {
 
   if (command === "export") {
     console.log("🚀 Memulai export data...\n");
-    await exportDirektoriUsaha();
+    await exportDirektoriUsaha(`${RESULT_DIR}/direktori_usaha.json`);
+  } else if (command === "export-latlong") {
+    console.log("🚀 Memulai export data dengan latlong...\n");
+    await exportDirektoriUsaha(
+      `${RESULT_DIR}/direktori_usaha_latlong.json`,
+      true,
+    );
   } else if (command === "view") {
     console.log("👀 Melihat data dari file JSON...\n");
     viewDirektoriUsaha();
@@ -2135,6 +2463,11 @@ const main = async () => {
   } else if (command === "confirm-batch") {
     console.log("🌐 Memulai konfirmasi batch dari hasil geocoding...\n");
     await confirmFromGeocodeSuccess();
+  } else if (command === "confirm-latlong") {
+    console.log(
+      "🌐 Memulai konfirmasi dari direktori_usaha_latlong.json (hasilgc=1)...\n",
+    );
+    await confirmFromLatLong();
   } else if (command === "geocode-all") {
     const concurrency = args[1] ? parseInt(args[1]) : 5;
     console.log("🌍 Memulai batch geocoding untuk semua data usaha...");
@@ -2165,6 +2498,13 @@ const main = async () => {
     console.log("=".repeat(50));
     console.log("1. Export data dari API:");
     console.log("   npx tsx groundcheck.ts export");
+    console.log(
+      "\n1.1 Export data dengan koordinat (lat,long) untuk analisis/spasial:",
+    );
+    console.log("   npx tsx groundcheck.ts export-latlong");
+    console.log(
+      "   Output: CSV/JSON berisi kolom: id, nama, latitude, longitude — gunakan untuk analisis spasial atau visualisasi di GIS",
+    );
     console.log("\n2. Lihat data dari file JSON:");
     console.log("   npx tsx groundcheck.ts view");
     console.log("\n3. Periksa data usaha berdasarkan IDSBR:");
@@ -2187,6 +2527,16 @@ const main = async () => {
     );
     console.log(
       "   (Hasil disimpan ke hasil_confirm_sukses.json & hasil_confirm_gagal.json)",
+    );
+    console.log(
+      "\n5.1 Konfirmasi dari direktori_usaha_latlong.json (hasilgc default=1):",
+    );
+    console.log("   npx tsx groundcheck.ts confirm-latlong");
+    console.log(
+      "   (Kirim konfirmasi menggunakan perusahaan_id, latitude, longitude dari direktori_usaha_latlong.json)",
+    );
+    console.log(
+      "   (Hasil disimpan ke hasil_confirm_latlong_sukses.json & hasil_confirm_latlong_gagal.json)",
     );
     console.log("\n6. Geocode nama usaha via Google Maps:");
     console.log("   npx tsx groundcheck.ts geocode <nama_usaha>");
